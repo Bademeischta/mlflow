@@ -15,6 +15,7 @@ import {
 } from '@databricks/web-shared/model-trace-explorer';
 import { setupServer } from '../../../../common/utils/setup-msw';
 import { rest } from 'msw';
+import { OverviewChartProvider } from '../OverviewChartContext';
 
 // Helper to create a data point with tool name and status
 const createDataPoint = (toolName: string, status: string, count: number) => ({
@@ -33,14 +34,7 @@ describe('ToolCallChartsSection', () => {
   const timeIntervalSeconds = 3600;
   const timeBuckets = [new Date('2025-12-22T10:00:00Z').getTime(), new Date('2025-12-22T11:00:00Z').getTime()];
 
-  const defaultProps: {
-    experimentId: string;
-    startTimeMs: number;
-    endTimeMs: number;
-    timeIntervalSeconds: number;
-    timeBuckets: number[];
-    searchQuery?: string;
-  } = {
+  const contextProps = {
     experimentId: testExperimentId,
     startTimeMs,
     endTimeMs,
@@ -59,12 +53,14 @@ describe('ToolCallChartsSection', () => {
       },
     });
 
-  const renderComponent = (props: Partial<typeof defaultProps> = {}) => {
+  const renderComponent = () => {
     const queryClient = createQueryClient();
     return renderWithIntl(
       <QueryClientProvider client={queryClient}>
         <DesignSystemProvider>
-          <ToolCallChartsSection {...defaultProps} {...props} />
+          <OverviewChartProvider {...contextProps}>
+            <ToolCallChartsSection />
+          </OverviewChartProvider>
         </DesignSystemProvider>
       </QueryClientProvider>,
     );
@@ -281,98 +277,6 @@ describe('ToolCallChartsSection', () => {
 
       expect(capturedBody.start_time_ms).toBe(startTimeMs);
       expect(capturedBody.end_time_ms).toBe(endTimeMs);
-    });
-  });
-
-  describe('searchQuery filtering', () => {
-    it('should filter tools by searchQuery', async () => {
-      setupTraceMetricsHandler([
-        createDataPoint('get_weather', SpanStatus.OK, 100),
-        createDataPoint('search_docs', SpanStatus.OK, 50),
-        createDataPoint('fetch_data', SpanStatus.OK, 75),
-      ]);
-
-      renderComponent({ searchQuery: 'weather' });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('tool-chart-get_weather')).toBeInTheDocument();
-      });
-
-      expect(screen.queryByTestId('tool-chart-search_docs')).not.toBeInTheDocument();
-      expect(screen.queryByTestId('tool-chart-fetch_data')).not.toBeInTheDocument();
-    });
-
-    it('should filter tools case-insensitively', async () => {
-      setupTraceMetricsHandler([
-        createDataPoint('GetWeather', SpanStatus.OK, 100),
-        createDataPoint('search_docs', SpanStatus.OK, 50),
-      ]);
-
-      renderComponent({ searchQuery: 'GETWEATHER' });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('tool-chart-GetWeather')).toBeInTheDocument();
-      });
-
-      expect(screen.queryByTestId('tool-chart-search_docs')).not.toBeInTheDocument();
-    });
-
-    it('should show all tools when searchQuery is empty', async () => {
-      setupTraceMetricsHandler([
-        createDataPoint('get_weather', SpanStatus.OK, 100),
-        createDataPoint('search_docs', SpanStatus.OK, 50),
-      ]);
-
-      renderComponent({ searchQuery: '' });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('tool-chart-get_weather')).toBeInTheDocument();
-        expect(screen.getByTestId('tool-chart-search_docs')).toBeInTheDocument();
-      });
-    });
-
-    it('should show all tools when searchQuery is whitespace only', async () => {
-      setupTraceMetricsHandler([
-        createDataPoint('get_weather', SpanStatus.OK, 100),
-        createDataPoint('search_docs', SpanStatus.OK, 50),
-      ]);
-
-      renderComponent({ searchQuery: '   ' });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('tool-chart-get_weather')).toBeInTheDocument();
-        expect(screen.getByTestId('tool-chart-search_docs')).toBeInTheDocument();
-      });
-    });
-
-    it('should render nothing when searchQuery matches no tools', async () => {
-      setupTraceMetricsHandler([
-        createDataPoint('get_weather', SpanStatus.OK, 100),
-        createDataPoint('search_docs', SpanStatus.OK, 50),
-      ]);
-
-      const { container } = renderComponent({ searchQuery: 'nonexistent' });
-
-      await waitFor(() => {
-        expect(container).toBeEmptyDOMElement();
-      });
-    });
-
-    it('should support partial matching in searchQuery', async () => {
-      setupTraceMetricsHandler([
-        createDataPoint('get_weather', SpanStatus.OK, 100),
-        createDataPoint('get_location', SpanStatus.OK, 50),
-        createDataPoint('search_docs', SpanStatus.OK, 75),
-      ]);
-
-      renderComponent({ searchQuery: 'get_' });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('tool-chart-get_weather')).toBeInTheDocument();
-        expect(screen.getByTestId('tool-chart-get_location')).toBeInTheDocument();
-      });
-
-      expect(screen.queryByTestId('tool-chart-search_docs')).not.toBeInTheDocument();
     });
   });
 });

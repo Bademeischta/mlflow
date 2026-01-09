@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import invariant from 'invariant';
 import { useParams } from '../../../common/utils/RoutingUtils';
 import { GenAiTracesTableSearchInput } from '@databricks/web-shared/genai-traces-table';
@@ -21,21 +21,7 @@ import { LazyToolPerformanceSummary } from './components/LazyToolPerformanceSumm
 import { TabContentContainer, ChartGrid } from './components/OverviewLayoutComponents';
 import { calculateTimeInterval } from './hooks/useTraceMetricsQuery';
 import { generateTimeBuckets } from './utils/chartUtils';
-
-/**
- * Chart titles for search filtering.
- * These match the chart titles displayed in the UI.
- */
-const CHART_TITLES = {
-  requests: 'Requests',
-  latency: 'Latency',
-  errors: 'Errors',
-  tokenUsage: 'Token Usage',
-  tokenPerTrace: 'Tokens per Trace',
-  toolPerformance: 'Tool Performance Summary',
-  toolUsage: 'Tool Usage Over Time',
-  toolLatency: 'Latency Comparison',
-} as const;
+import { OverviewChartProvider } from './OverviewChartContext';
 
 enum OverviewTab {
   Usage = 'usage',
@@ -73,21 +59,6 @@ const ExperimentGenAIOverviewPageImpl = () => {
   const timeBuckets = useMemo(
     () => generateTimeBuckets(startTimeMs, endTimeMs, timeIntervalSeconds),
     [startTimeMs, endTimeMs, timeIntervalSeconds],
-  );
-
-  // Common props for all chart components
-  const chartProps = { experimentId, startTimeMs, endTimeMs, timeIntervalSeconds, timeBuckets };
-
-  /**
-   * Check if a chart title matches the search query.
-   * Returns true if no search query or if the title contains the query.
-   */
-  const matchesSearch = useCallback(
-    (title: string): boolean => {
-      if (!searchQuery.trim()) return true;
-      return title.toLowerCase().includes(searchQuery.toLowerCase().trim());
-    },
-    [searchQuery],
   );
 
   return (
@@ -152,52 +123,58 @@ const ExperimentGenAIOverviewPageImpl = () => {
           <TracesV3DateSelector excludeOptions={['ALL']} />
         </div>
 
-        <Tabs.Content value={OverviewTab.Usage} css={{ flex: 1, overflowY: 'auto' }}>
-          <TabContentContainer>
-            {/* Requests chart - full width */}
-            {matchesSearch(CHART_TITLES.requests) && <LazyTraceRequestsChart {...chartProps} />}
+        <OverviewChartProvider
+          experimentId={experimentId}
+          startTimeMs={startTimeMs}
+          endTimeMs={endTimeMs}
+          timeIntervalSeconds={timeIntervalSeconds}
+          timeBuckets={timeBuckets}
+        >
+          <Tabs.Content value={OverviewTab.Usage} css={{ flex: 1, overflowY: 'auto' }}>
+            <TabContentContainer>
+              {/* Requests chart - full width */}
+              <LazyTraceRequestsChart />
 
-            {/* Latency and Errors charts - side by side */}
-            <ChartGrid>
-              {matchesSearch(CHART_TITLES.latency) && <LazyTraceLatencyChart {...chartProps} />}
-              {matchesSearch(CHART_TITLES.errors) && <LazyTraceErrorsChart {...chartProps} />}
-            </ChartGrid>
+              {/* Latency and Errors charts - side by side */}
+              <ChartGrid>
+                <LazyTraceLatencyChart />
+                <LazyTraceErrorsChart />
+              </ChartGrid>
 
-            {/* Token Usage and Token Stats charts - side by side */}
-            <ChartGrid>
-              {matchesSearch(CHART_TITLES.tokenUsage) && <LazyTraceTokenUsageChart {...chartProps} />}
-              {matchesSearch(CHART_TITLES.tokenPerTrace) && <LazyTraceTokenStatsChart {...chartProps} />}
-            </ChartGrid>
-          </TabContentContainer>
-        </Tabs.Content>
+              {/* Token Usage and Token Stats charts - side by side */}
+              <ChartGrid>
+                <LazyTraceTokenUsageChart />
+                <LazyTraceTokenStatsChart />
+              </ChartGrid>
+            </TabContentContainer>
+          </Tabs.Content>
 
-        <Tabs.Content value={OverviewTab.Quality} css={{ flex: 1, overflowY: 'auto' }}>
-          <TabContentContainer>
-            {/* Assessment charts - dynamically rendered based on available assessments */}
-            <AssessmentChartsSection {...chartProps} searchQuery={searchQuery} />
-          </TabContentContainer>
-        </Tabs.Content>
+          <Tabs.Content value={OverviewTab.Quality} css={{ flex: 1, overflowY: 'auto' }}>
+            <TabContentContainer>
+              {/* Assessment charts - dynamically rendered based on available assessments */}
+              <AssessmentChartsSection />
+            </TabContentContainer>
+          </Tabs.Content>
 
-        <Tabs.Content value={OverviewTab.ToolCalls} css={{ flex: 1, overflowY: 'auto' }}>
-          <TabContentContainer>
-            {/* Tool call statistics */}
-            <ToolCallStatistics experimentId={experimentId} startTimeMs={startTimeMs} endTimeMs={endTimeMs} />
+          <Tabs.Content value={OverviewTab.ToolCalls} css={{ flex: 1, overflowY: 'auto' }}>
+            <TabContentContainer>
+              {/* Tool call statistics */}
+              <ToolCallStatistics />
 
-            {/* Tool performance summary */}
-            {matchesSearch(CHART_TITLES.toolPerformance) && (
-              <LazyToolPerformanceSummary experimentId={experimentId} startTimeMs={startTimeMs} endTimeMs={endTimeMs} />
-            )}
+              {/* Tool performance summary */}
+              <LazyToolPerformanceSummary />
 
-            {/* Tool error rate charts - dynamically rendered based on available tools */}
-            <ToolCallChartsSection {...chartProps} searchQuery={searchQuery} />
+              {/* Tool error rate charts - dynamically rendered based on available tools */}
+              <ToolCallChartsSection />
 
-            {/* Tool usage and latency charts - side by side */}
-            <ChartGrid>
-              {matchesSearch(CHART_TITLES.toolUsage) && <LazyToolUsageChart {...chartProps} />}
-              {matchesSearch(CHART_TITLES.toolLatency) && <LazyToolLatencyChart {...chartProps} />}
-            </ChartGrid>
-          </TabContentContainer>
-        </Tabs.Content>
+              {/* Tool usage and latency charts - side by side */}
+              <ChartGrid>
+                <LazyToolUsageChart />
+                <LazyToolLatencyChart />
+              </ChartGrid>
+            </TabContentContainer>
+          </Tabs.Content>
+        </OverviewChartProvider>
       </Tabs.Root>
     </div>
   );

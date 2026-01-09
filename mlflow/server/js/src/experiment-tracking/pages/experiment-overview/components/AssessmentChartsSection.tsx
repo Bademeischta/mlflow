@@ -4,28 +4,15 @@ import { FormattedMessage } from 'react-intl';
 import { useAssessmentChartsSectionData } from '../hooks/useAssessmentChartsSectionData';
 import { OverviewChartLoadingState, OverviewChartErrorState, OverviewChartEmptyState } from './OverviewChartComponents';
 import { LazyTraceAssessmentChart } from './LazyTraceAssessmentChart';
-import type { OverviewChartProps } from '../types';
-
-interface AssessmentChartsSectionProps extends OverviewChartProps {
-  /** Optional search query to filter assessments by name */
-  searchQuery?: string;
-}
 
 /**
  * Component that fetches available feedback assessments and renders a chart for each one.
  */
-export const AssessmentChartsSection: React.FC<AssessmentChartsSectionProps> = ({ searchQuery, ...props }) => {
+export const AssessmentChartsSection: React.FC = () => {
   const { theme } = useDesignSystemTheme();
 
   // Fetch and process assessment data
-  const { assessmentNames, avgValuesByName, isLoading, error, hasData } = useAssessmentChartsSectionData(props);
-
-  // Filter assessment names based on search query (matches chart title)
-  const filteredAssessmentNames = useMemo(() => {
-    if (!searchQuery?.trim()) return assessmentNames;
-    const query = searchQuery.toLowerCase().trim();
-    return assessmentNames.filter((name) => name.toLowerCase().includes(query));
-  }, [assessmentNames, searchQuery]);
+  const { assessmentNames, avgValuesByName, isLoading, error, hasData } = useAssessmentChartsSectionData();
 
   // Color palette using design system colors
   const assessmentColors = useMemo(
@@ -56,7 +43,7 @@ export const AssessmentChartsSection: React.FC<AssessmentChartsSectionProps> = (
     return <OverviewChartErrorState />;
   }
 
-  if (!hasData || filteredAssessmentNames.length === 0) {
+  if (!hasData) {
     return (
       <OverviewChartEmptyState
         message={
@@ -91,19 +78,14 @@ export const AssessmentChartsSection: React.FC<AssessmentChartsSectionProps> = (
       </div>
 
       {/* Assessment charts - one row per scorer */}
-      {filteredAssessmentNames.map((name) => {
-        // Use original index for consistent colors
-        const originalIndex = assessmentNames.indexOf(name);
-        return (
-          <LazyTraceAssessmentChart
-            key={name}
-            {...props}
-            assessmentName={name}
-            lineColor={getAssessmentColor(originalIndex)}
-            avgValue={avgValuesByName.get(name)}
-          />
-        );
-      })}
+      {assessmentNames.map((name, index) => (
+        <LazyTraceAssessmentChart
+          key={name}
+          assessmentName={name}
+          lineColor={getAssessmentColor(index)}
+          avgValue={avgValuesByName.get(name)}
+        />
+      ))}
     </div>
   );
 };
