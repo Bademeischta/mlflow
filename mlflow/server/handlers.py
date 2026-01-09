@@ -1703,9 +1703,14 @@ def _validate_gateway_path(method: str, gateway_path: str) -> None:
             )
     elif method == "POST":
         # For POST, gateway_path must be in the form of "gateway/{name}/invocations"
-        if not re.fullmatch(r"gateway/[^/]+/invocations", gateway_path.strip("/")):
+        if not re.fullmatch(r"gateway/[a-zA-Z0-9_\-]+/invocations", gateway_path.strip("/")):
             raise MlflowException(
                 message=f"Invalid gateway_path: {gateway_path} for method: {method}",
+                error_code=INVALID_PARAMETER_VALUE,
+            )
+    else:
+        raise MlflowException(
+            message=f"Invalid method: {method}",
                 error_code=INVALID_PARAMETER_VALUE,
             )
 
